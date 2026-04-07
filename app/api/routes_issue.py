@@ -9,9 +9,11 @@ router = APIRouter()
 def get_issues(
     repo: str = Query(... , description= "Repository must be in owner/repo format."),
     page: int = Query(1 , ge=1 , description= "Page number must be >= 1"),
-    skill: Optional[str] = Query(None)
+    skill: Optional[str] = Query(None),
+    level : Optional[str] = "Beginner"
 ):
-    issues = fetch_issues(repo , page)
+    issues = fetch_issues(repo , page , skill)
 
-    filtered = recommend_issues(issues , skill)
+    filtered = recommend_issues(issues , skill , level)
+
     return filtered

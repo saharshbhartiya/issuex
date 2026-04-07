@@ -8,7 +8,6 @@ load_dotenv()
 client = Groq(api_key = os.getenv("GROQ_API_KEY"))
 
 def analyze_issue(title: str , body: str):
-    print("Calling AI")
     prompt = f"""
     Analyze this GitHub issue :
 

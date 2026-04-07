@@ -1,11 +1,11 @@
 import requests
 from fastapi import HTTPException
 from app.services.ai_service import analyze_issue
+from typing import Optional
 
 cache = {}
 
-
-def fetch_issues(repo: str , page : int):
+def fetch_issues(repo: str , page : int , skill : Optional[str]):
     try:
         owner , repo_name = repo.split("/")
     except ValueError:
@@ -14,17 +14,16 @@ def fetch_issues(repo: str , page : int):
             detail= "Invalid repo format. Use owner/repo"
         )
     
-    key = f"{repo_name}_{page}"
+    key = f"{owner}_{repo_name}_{page}_{skill}"
 
     if key in cache:
-        print("Fetching from Cache")
         return cache[key]
     
     url = f"https://api.github.com/repos/{owner}/{repo_name}/issues"
 
     params = {
         "page" : page,
-        "per_page" : 5,
+        "per_page" : 10,
         "state" : "open"
     }
 
@@ -45,19 +44,36 @@ def fetch_issues(repo: str , page : int):
     data = response.json()
 
     issues = []
+    max_call = 3
+    count = 0
 
     for item in data:
+
         if "pull_request" in item:
             continue
-        """+ " Labels: " + str(item.get("labels" , []) """
-        ai_result = analyze_issue(item.get("title" , "") , item.get("body" , "") + " Labels: " + str(item.get("labels" , [])))
+
+        labels =  [label["name"] for label in item.get("labels" , [])]
+        labels_text = ", ".join(labels)
+        body = item.get("body") or ""
+
+        if count < max_call :
+            ai_result = analyze_issue(
+                item.get("title" , "") , 
+                body + f" Labels: {labels_text}"
+            )
+            count += 1
+        else:
+            ai_result = {
+                "skill" : "Unknown",
+                "difficulty" : "Unknown",
+                "explanation" : "AI analysis skipped"
+            }
         issues.append({
             "title" : item.get("title"),
             "url" : item.get("html_url"),
             "number" : item.get("number"),
-            "labels" : [label["name"] for label in item.get("labels" , [])],
+            "labels" : labels,
             "analysis" : ai_result
         })
     cache[key] = issues
-    print("Fetching from Github")
     return issues
