@@ -1,13 +1,17 @@
 from fastapi import APIRouter , Query
-from typing import List
+from typing import List, Optional
 from app.services.github_service import fetch_issues
 from app.schemas.issue_schema import IssueResponse
-
+from app.services.recommendation_service import recommend_issues
 router = APIRouter()
 
 @router.get("/issues" , response_model=List[IssueResponse])
 def get_issues(
     repo: str = Query(... , description= "Repository must be in owner/repo format."),
-    page: int = Query(1 , ge=1 , description= "Page number must be >= 1")
+    page: int = Query(1 , ge=1 , description= "Page number must be >= 1"),
+    skill: Optional[str] = Query(None)
 ):
-    return fetch_issues(repo , page)
+    issues = fetch_issues(repo , page)
+
+    filtered = recommend_issues(issues , skill)
+    return filtered

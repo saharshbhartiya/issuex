@@ -1,6 +1,6 @@
 import requests
 from fastapi import HTTPException
-
+from app.services.ai_service import analyze_issue
 
 cache = {}
 
@@ -49,12 +49,14 @@ def fetch_issues(repo: str , page : int):
     for item in data:
         if "pull_request" in item:
             continue
-
+        """+ " Labels: " + str(item.get("labels" , []) """
+        ai_result = analyze_issue(item.get("title" , "") , item.get("body" , "") + " Labels: " + str(item.get("labels" , [])))
         issues.append({
             "title" : item.get("title"),
             "url" : item.get("html_url"),
             "number" : item.get("number"),
-            "labels" : [label["name"] for label in item.get("labels" , [])]
+            "labels" : [label["name"] for label in item.get("labels" , [])],
+            "analysis" : ai_result
         })
     cache[key] = issues
     print("Fetching from Github")
