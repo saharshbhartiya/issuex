@@ -1,11 +1,20 @@
 import requests
 from fastapi import HTTPException
 from app.services.ai_service import analyze_issue
-from typing import Optional
+from app.services.db_service import get_issues_from_db, save_issue , convert_db_todict
 
 cache = {}
 
-def fetch_issues(repo: str , page : int , skill : Optional[str]):
+def fetch_issues(repo: str , page : int , background_tasks : None):
+    db_issues = get_issues_from_db(repo)
+
+    if db_issues:
+        valid = [i for i in db_issues if i.skill != "Processing"]
+
+        if valid:
+            print("Fetching from DB")
+            return convert_db_todict(valid)
+    
     try:
         owner , repo_name = repo.split("/")
     except ValueError:
@@ -14,10 +23,16 @@ def fetch_issues(repo: str , page : int , skill : Optional[str]):
             detail= "Invalid repo format. Use owner/repo"
         )
     
-    key = f"{owner}_{repo_name}_{page}_{skill}"
+    key = f"{owner}_{repo_name}_{page}"
 
     if key in cache:
-        return cache[key]
+        cached = cache[key]
+
+        if any(i["analysis"]["skill"] == "Processing" for i in cached):
+            print("Cache has processing data , skipping cache")
+        else:
+            print("Fetching from cache")
+            return cached
     
     url = f"https://api.github.com/repos/{owner}/{repo_name}/issues"
 
@@ -53,27 +68,44 @@ def fetch_issues(repo: str , page : int , skill : Optional[str]):
             continue
 
         labels =  [label["name"] for label in item.get("labels" , [])]
-        labels_text = ", ".join(labels)
-        body = item.get("body") or ""
 
         if count < max_call :
-            ai_result = analyze_issue(
-                item.get("title" , "") , 
-                body + f" Labels: {labels_text}"
-            )
+         
+            background_tasks.add_task(process_issue_async , repo , item)
+
             count += 1
-        else:
-            ai_result = {
-                "skill" : "Unknown",
-                "difficulty" : "Unknown",
-                "explanation" : "AI analysis skipped"
-            }
+
+
         issues.append({
             "title" : item.get("title"),
             "url" : item.get("html_url"),
             "number" : item.get("number"),
             "labels" : labels,
-            "analysis" : ai_result
+            "analysis" : {
+                "skill" : "Processing",
+                "difficulty" : "Processing",
+                "explanation" : "Analysis in progress..."
+            }
         })
     cache[key] = issues
     return issues
+
+def process_issue_async(repo , item):
+    labels = [label["name"] for label in item.get("labels" ,[])]
+    body = item.get("body") or ""
+
+    ai_result = analyze_issue(
+        item.get("title" , ""),
+        body + f" Labels: {','.join(labels)}"
+    )
+
+    issue_data = {
+        "title" : item.get("title"),
+        "url" : item.get("html_url"),
+        "number" : item.get("number"),
+        "labels" : labels,
+        "analysis" : ai_result
+    }
+    
+    save_issue(repo , issue_data)
+    

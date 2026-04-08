@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.api.routes_issue import router as issue_router
+
 app = FastAPI()
 
 
