@@ -13,3 +13,4 @@ class Issue(Base):
     skill = Column(String)
     difficulty = Column(String)
     explanation = Column(Text)
+    page = Column(Integer)

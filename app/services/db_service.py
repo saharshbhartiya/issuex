@@ -1,7 +1,7 @@
 from app.db.database import SessionLocal
 from app.models.issue_model import Issue
 
-def save_issue(repo , issue_data):
+def save_issue(repo , issue_data , page):
     db = SessionLocal()
 
     issue = Issue(
@@ -12,17 +12,18 @@ def save_issue(repo , issue_data):
         labels = ",".join(issue_data["labels"]), 
         skill = issue_data["analysis"]["skill"],
         difficulty = issue_data["analysis"]["difficulty"],
-        explanation = issue_data["analysis"]["explanation"]
+        explanation = issue_data["analysis"]["explanation"],
+        page = page
     )
 
     db.add(issue)
     db.commit()
     db.close()
 
-def get_issues_from_db(repo):
+def get_issues_from_db(repo , page):
     db = SessionLocal()
 
-    issues = db.query(Issue).filter(Issue.repo == repo).all()
+    issues = db.query(Issue).filter(Issue.repo == repo , Issue.page == page).all()
     db.close()
     return issues
 

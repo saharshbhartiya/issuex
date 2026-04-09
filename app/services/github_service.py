@@ -6,7 +6,7 @@ from app.services.db_service import get_issues_from_db, save_issue , convert_db_
 cache = {}
 
 def fetch_issues(repo: str , page : int , background_tasks : None):
-    db_issues = get_issues_from_db(repo)
+    db_issues = get_issues_from_db(repo , page)
 
     if db_issues:
         valid = [i for i in db_issues if i.skill != "Processing"]
@@ -71,7 +71,7 @@ def fetch_issues(repo: str , page : int , background_tasks : None):
 
         if count < max_call :
          
-            background_tasks.add_task(process_issue_async , repo , item)
+            background_tasks.add_task(process_issue_async , repo , item , page)
 
             count += 1
 
@@ -90,7 +90,7 @@ def fetch_issues(repo: str , page : int , background_tasks : None):
     cache[key] = issues
     return issues
 
-def process_issue_async(repo , item):
+def process_issue_async(repo , item , page):
     labels = [label["name"] for label in item.get("labels" ,[])]
     body = item.get("body") or ""
 
@@ -107,5 +107,5 @@ def process_issue_async(repo , item):
         "analysis" : ai_result
     }
     
-    save_issue(repo , issue_data)
+    save_issue(repo , issue_data , page)
     
